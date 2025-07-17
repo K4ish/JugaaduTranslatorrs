@@ -53,7 +53,7 @@ Abhishek	QA & Tester
 🛠️ **Tech Stack**
 Frontend: Streamlit
 
-Backend: Python, CSV-based phrase store (easy to scale to Firebase/Supabase)
+Backend: Google Data sheet,Python, CSV-based phrase store (easy to scale to Firebase/Supabase)
 
 NLP/AI: Hugging Face Transformers (IndicBERT, NLLB, MarianMT)
 
