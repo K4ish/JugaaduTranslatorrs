@@ -1,92 +1,95 @@
-🧠 Jugaadu Translator
-Local Phrase Translator
-Preserve your roots. Understand each other. One phrase at a time.
+# 🧠 Jugaadu Translator  
+### *Local Phrase Translator*  
+**Preserve your roots. Understand each other. One phrase at a time.**
 
-📌 Overview
-Jugaadu Translator is a multilingual, community-powered Streamlit application that translates colloquial and local phrases into standardized Hindi or English. It aims to bridge India’s rich linguistic diversity by collecting culturally significant data to train better, more inclusive language models.
+---
 
-🚀 Features
-🗣️ Colloquial to Standard Translator
+## 📌 Overview
+
+**Jugaadu Translator** is a **multilingual, community-powered Streamlit application** that translates colloquial and local phrases into standardized Hindi or English. It aims to bridge India’s rich linguistic diversity by collecting culturally significant data to train better, more inclusive language models.
+
+---
+
+## 🚀 Features
+
+### 🗣️ Colloquial to Standard Translator  
 Type regional/dialect phrases and get translations in formal Hindi or English.
 
-🔁 Bi-Directional Translation
+### 🔁 Bi-Directional Translation  
 Translate from standard to local expressions and vice versa.
 
-✍️ User-Contributed Phrases
+### ✍️ User-Contributed Phrases  
 Allow users to contribute new slang, idioms, or regional terms.
 
-🌐 Indic Language Support
+### 🌐 Indic Language Support  
 Supports transliterated input (e.g., Hinglish) and multiple Indian languages.
 
-📤 Corpus Builder Mode
-Every phrase contributes to a crowdsourced linguistic dataset.
+### 📤 Corpus Builder Mode  
+Every phrase contributes to a crowdsourced linguistic dataset.  
 Data includes:
+- Phrase  
+- Translation  
+- Region (state-level geolocation)  
+Stored anonymously in **Google Sheets** for future training and analysis.
 
-Phrase
+> ⚠️ **Privacy Note**: All contributions are anonymized. No exact user location is stored—only phrase, translation, and general region.
 
-Translation
+---
 
-Region (state-level geolocation)
-Stored anonymously in Google Sheets for future training and analysis.
+## 🌍 Problem Statement
 
-⚠️ Privacy Note: All contributions are anonymized. No exact user location is stored—only phrase, translation, and general region.
-
-🌍 Problem Statement
-India’s diversity in dialects makes communication across regions difficult.
+India’s diversity in dialects makes communication across regions difficult.  
 Modern LLMs lack sufficient data on local idioms and speech patterns, causing poor performance in real-world multilingual usage.
 
-🧩 Our Solution
-Jugaadu Translator functions as:
+---
 
-A daily-use translation tool for region-specific speech
+## 🧩 Our Solution
 
-A data generator for collecting dialectal expressions to train regional LLMs
+**Jugaadu Translator** functions as:
 
-A language preservation utility for documenting disappearing idioms
+- A **daily-use translation tool** for region-specific speech  
+- A **data generator** for collecting dialectal expressions to train regional LLMs  
+- A **language preservation utility** for documenting disappearing idioms
 
-💡 Use Cases
-A tourist from North India understanding phrases in Telangana
+---
 
-Job seekers converting informal local language into formal resume-ready language
+## 💡 Use Cases
 
-NLP researchers collecting dialectal variations
+- A tourist from North India understanding phrases in Telangana  
+- Job seekers converting informal local language into formal resume-ready language  
+- NLP researchers collecting dialectal variations  
+- Language learners and school children learning colloquial speech
 
-Language learners and school children learning colloquial speech
+---
 
-👥 Team
-Name	Role
-Krishna Mishra	Project Manager
-Syed Adnan	Developer (Backend & AI)
-Karthikeya	UI Engineer
-Nandhu	UX Designer
-Abhishek	QA & Tester
+## 👥 Team
 
-🛠️ Tech Stack
-Frontend:
+| Name           | Role                         |
+|----------------|------------------------------|
+| Krishna Mishra | Project Manager              |
+| Syed Adnan     | Developer (Backend & AI)     |
+| Karthikeya     | UI Engineer                  |
+| Nandhu         | UX Designer                  |
+| Abhishek       | QA & Tester                  |
 
-Streamlit
+---
 
-Backend:
+## 🛠️ Tech Stack
 
-Google Sheets
+**Frontend:**  
+- Streamlit
 
-Python
+**Backend:**  
+- Google Sheets  
+- Python  
+- CSV-based phrase store (scalable to Firebase/Supabase)
 
-CSV-based phrase store (scalable to Firebase/Supabase)
+**NLP / AI Models:**  
+- Hugging Face Transformers  
+  - IndicBERT  
+  - NLLB  
+  - MarianMT
 
-NLP / AI Models:
-
-Hugging Face Transformers
-
-IndicBERT
-
-NLLB
-
-MarianMT
-
-Hosting:
-
-Hugging Face Spaces (Gradio/Streamlit)
-
-GitHub
-
+**Hosting:**  
+- Hugging Face Spaces (Gradio/Streamlit)  
+- GitHub
