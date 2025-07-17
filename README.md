@@ -17,7 +17,7 @@ Let users teach the app new slang, idioms, or regional terms.
 Support for transliterated input (e.g., Hinglish), multiple Indian languages.
 
 📤 Corpus Builder Mode
-Every phrase contributes to a crowdsourced linguistic dataset. Submitted phrases, their translations, and approximate geolocation metadata (region or state-level) are stored for future training and analysis.
+Every phrase contributes to a crowdsourced linguistic dataset. Submitted phrases, their translations, and approximate geolocation metadata (region or state-level) are stored for future training and analysis by implementing google sheets.
 
 ⚠️ Privacy Note: All contributions are anonymized. Only the phrase, translation, and region (not exact user location) are stored for research and corpus-building purposes.
 
