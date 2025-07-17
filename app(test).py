@@ -1,194 +1,149 @@
 import streamlit as st
-import json
+import openai
+import pandas as pd
+from st_audiorecorder import st_audiorecorder
 import os
-import geocoder
-import speech_recognition as sr
-from pydub import AudioSegment
-from io import BytesIO
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
-from googletrans import Translator
-from dotenv import load_dotenv
-import streamlit_authenticator as stauth
+from datetime import datetime
 
-# --- Load Environment Variables ---
-load_dotenv()
-COOKIE_NAME = os.getenv("COOKIE_NAME")
-COOKIE_KEY = os.getenv("COOKIE_KEY")
-GSHEET_NAME = os.getenv("GSHEET_NAME")
-GSHEET_CREDS = "service_account.json"
+# --- App Configuration ---
+st.set_page_config(page_title="Audio Translator", page_icon="🎤", layout="centered")
 
-# --- Google Sheets Append ---
-def append_to_gsheet(local, english, location, source_lang=None, contributor=None, title=None, description=None):
-    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    creds = ServiceAccountCredentials.from_json_keyfile_name(GSHEET_CREDS, scope)
-    client = gspread.authorize(creds)
-    sheet = client.open(GSHEET_NAME).sheet1
-    sheet.append_row([
-        contributor or "Anonymous",
-        title or "Untitled",
-        description or "",
-        local,
-        english,
-        location,
-        source_lang or "N/A"
-    ])
-
-# --- Title & Description Generator ---
-def generate_title_description(local_phrase, english_translation):
-    title = f"Meaning of '{local_phrase[:20].capitalize()}'"
-    description = f"'{local_phrase}' means \"{english_translation}\" in standard English."
-    return title, description
-
-# --- Load & Save DB ---
-DB_FILE = "phrases_db.json"
-def load_database():
-    if not os.path.exists(DB_FILE):
-        initial_data = {
-            "kaisa hai?": "How are you?",
-            "sab theek hai": "Everything is fine.",
-            "tuition laga lo": "Get a tutor / Start tuition classes.",
-            "timepass kar raha hoon": "I'm just passing time.",
-            "panga mat le": "Don't mess with me.",
-            "oye!": "Hey!",
-            "chalega": "It will work / That's acceptable."
-        }
-        with open(DB_FILE, 'w', encoding='utf-8') as f:
-            json.dump(initial_data, f, ensure_ascii=False, indent=4)
-        return initial_data
-    try:
-        with open(DB_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except:
-        return {}
-
-def save_database(data):
-    with open(DB_FILE, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
-
-# --- Authentication Setup ---
-users = {
-    "usernames": {
-        "alice@gmail.com": {"name": "Alice", "password": "test123"},
-        "bob@gmail.com": {"name": "Bob", "password": "secret456"},
-    }
-}
-
-hashed_passwords = stauth.Hasher(
-    [u["password"] for u in users["usernames"].values()]
-).generate()
-
-for (username, user), pwd_hash in zip(users["usernames"].items(), hashed_passwords):
-    user["hashed_password"] = pwd_hash
-
-authenticator = stauth.Authenticate(
-    users["usernames"],
-    COOKIE_NAME,
-    COOKIE_KEY,
-    cookie_expiry_days=1
-)
-
-name, auth_status, username = authenticator.login("Login", "main")
-if not auth_status:
+# --- OpenAI API Setup ---
+try:
+    openai.api_key = st.secrets["OPENAI_API_KEY"]
+except KeyError:
+    st.error("OpenAI API key not found! Please add it to your Streamlit secrets.")
     st.stop()
-authenticator.logout("Logout", "sidebar")
 
-# --- Translator App Logic ---
-st.set_page_config(page_title="Jugaadu Translator", page_icon="💡")
-translator = Translator()
-phrases_db = load_database()
-location_info = geocoder.ip('me')
-user_location = f"{location_info.city}, {location_info.country}" if location_info.city else "Unknown"
+# --- Data Storage Setup ---
+DATA_DIR = "audio_data"
+LOG_FILE = "translations_log.csv"
 
-# --- Sidebar Navigation ---
-st.sidebar.header("Navigation")
-mode = st.sidebar.radio("Choose a mode", ["Translate a Phrase", "Contribute a New Phrase", "🎙 Auto Speech Translator"])
+# Create directories and files if they don't exist
+if not os.path.exists(DATA_DIR):
+    os.makedirs(DATA_DIR)
 
-# --- Translate a Phrase ---
-if mode == "Translate a Phrase":
-    st.title("🔄 Translate")
-    direction = st.radio("Direction", ["Local → English", "English → Local"])
+if not os.path.exists(LOG_FILE):
+    # Create the CSV file with headers if it doesn't exist
+    pd.DataFrame(columns=[
+        "timestamp", "location", "audio_filename",
+        "original_transcription", "english_translation"
+    ]).to_csv(LOG_FILE, index=False)
 
-    if direction == "Local → English":
-        db = phrases_db
-        prompt = "Enter local phrase:"
+# --- Helper Functions ---
+
+def transcribe_audio(audio_filepath):
+    """Transcribes audio using OpenAI's Whisper model."""
+    try:
+        with open(audio_filepath, "rb") as audio_file:
+            transcript = openai.audio.transcriptions.create(
+                model="whisper-1",
+                file=audio_file,
+                response_format="json"
+            )
+        return transcript.text
+    except Exception as e:
+        st.error(f"Error during transcription: {e}")
+        return None
+
+def translate_text_to_english(text):
+    """Translates text to English using OpenAI's GPT model."""
+    try:
+        response = openai.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant that translates text to English."},
+                {"role": "user", "content": f"Translate the following text to English: {text}"}
+            ]
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        st.error(f"Error during translation: {e}")
+        return None
+
+def save_data(location, audio_filename, original_transcription, english_translation):
+    """Saves the new data entry to the CSV log file."""
+    new_entry = {
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "location": location,
+        "audio_filename": audio_filename,
+        "original_transcription": original_transcription,
+        "english_translation": english_translation
+    }
+    # Append the new entry to the CSV file
+    entry_df = pd.DataFrame([new_entry])
+    entry_df.to_csv(LOG_FILE, mode='a', header=False, index=False)
+
+
+# --- Main Application UI ---
+
+st.title("🎤 Audio Transcription and Translation App")
+st.markdown("""
+This app records your audio, transcribes it, and translates the transcription to English.
+All data is stored locally for future reference.
+""")
+
+st.header("Step 1: Record Your Audio")
+# The st_audiorecorder component returns audio data in bytes
+audio_bytes = st_audiorecorder()
+
+st.header("Step 2: Enter Your Location")
+location = st.text_input("Your Location (e.g., 'Paris, France')", placeholder="Enter city and country")
+
+st.header("Step 3: Process and Save")
+if st.button("Translate and Store Data"):
+    # --- Input Validation ---
+    if audio_bytes is None:
+        st.warning("Please record some audio first.")
+    elif not location.strip():
+        st.warning("Please enter your location.")
     else:
-        db = {v.lower(): k for k, v in phrases_db.items()}
-        prompt = "Enter English phrase:"
+        with st.spinner("Processing your request... Please wait."):
+            # 1. Save the recorded audio to a file
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            audio_filename = f"{timestamp}_{location.replace(' ', '_')}.wav"
+            audio_filepath = os.path.join(DATA_DIR, audio_filename)
 
-    user_input = st.text_input(prompt)
+            with open(audio_filepath, "wb") as f:
+                f.write(audio_bytes)
+            
+            st.success(f"Audio saved as `{audio_filepath}`")
 
-    if st.button("Translate"):
-        if user_input:
-            result = db.get(user_input.strip().lower(), "Not found. Try contributing!")
-            st.success(result)
+            # 2. Transcribe the audio
+            st.info("Transcribing audio...")
+            transcription = transcribe_audio(audio_filepath)
+
+            if transcription:
+                st.subheader("Original Transcription:")
+                st.write(transcription)
+
+                # 3. Translate the transcription to English
+                st.info("Translating text to English...")
+                translation = translate_text_to_english(transcription)
+                
+                if translation:
+                    st.subheader("English Translation:")
+                    st.write(translation)
+                    
+                    # 4. Save all data to the log file
+                    save_data(location, audio_filename, transcription, translation)
+                    st.success("All data has been successfully stored!")
+                else:
+                    st.error("Could not get translation. Data not fully saved.")
+            else:
+                st.error("Could not get transcription. Data not saved.")
+
+
+# --- Display Stored Data ---
+st.divider()
+st.header("📖 View Stored Data")
+
+if st.checkbox("Show all collected data"):
+    try:
+        df = pd.read_csv(LOG_FILE)
+        if df.empty:
+            st.info("The data log is currently empty. Submit some data to see it here.")
         else:
-            st.warning("Enter a phrase to translate.")
-
-# --- Contribute a New Phrase ---
-elif mode == "Contribute a New Phrase":
-    st.title("✍️ Contribute")
-
-    st.subheader("Optional: Use audio")
-    audio_file = st.file_uploader("Upload audio (mp3/wav/m4a)", type=["mp3", "wav", "m4a"])
-    transcript = ""
-
-    if audio_file:
-        try:
-            audio = AudioSegment.from_file(audio_file).set_channels(1).set_frame_rate(16000)
-            buf = BytesIO()
-            audio.export(buf, format="wav")
-            buf.seek(0)
-            r = sr.Recognizer()
-            with sr.AudioFile(buf) as source:
-                audio_data = r.record(source)
-                transcript = r.recognize_google(audio_data)
-                st.success(f"Transcript: {transcript}")
-        except:
-            st.error("Failed to transcribe audio.")
-
-    with st.form("contribution_form"):
-        local_phrase = st.text_input("Local Phrase", value=transcript)
-        english_phrase = st.text_input("English Translation")
-        submit = st.form_submit_button("Submit")
-
-        if submit and local_phrase and english_phrase:
-            local_key = local_phrase.strip().lower()
-            phrases_db[local_key] = english_phrase.strip()
-            save_database(phrases_db)
-            title, description = generate_title_description(local_key, english_phrase)
-            append_to_gsheet(local_key, english_phrase, user_location, contributor=username, title=title, description=description)
-            st.success("Thank you for contributing!")
-            st.balloons()
-        elif submit:
-            st.warning("Please fill in both fields.")
-
-# --- Auto Speech Translator ---
-elif mode == "🎙 Auto Speech Translator":
-    st.title("🎙 Auto Speech Translator")
-
-    audio_file = st.file_uploader("Upload audio (mp3/wav/m4a)", type=["mp3", "wav", "m4a"])
-    if audio_file:
-        try:
-            audio = AudioSegment.from_file(audio_file).set_channels(1).set_frame_rate(16000)
-            buf = BytesIO()
-            audio.export(buf, format="wav")
-            buf.seek(0)
-            r = sr.Recognizer()
-            with sr.AudioFile(buf) as source:
-                audio_data = r.record(source)
-                spoken = r.recognize_google(audio_data)
-                detected = translator.detect(spoken).lang
-                translated = translator.translate(spoken, dest="en").text
-                title, description = generate_title_description(spoken, translated)
-                append_to_gsheet(spoken, translated, user_location, source_lang=detected, contributor=username, title=title, description=description)
-
-                st.success(f"🗣 Original: {spoken}")
-                st.info(f"📘 Translated: {translated}")
-                st.caption(description)
-        except Exception as e:
-            st.error(f"Error: {e}")
-
-# --- Database Viewer ---
-with st.expander("📚 View Current Phrase DB"):
-    st.json(phrases_db)
+            st.dataframe(df)
+    except FileNotFoundError:
+        st.info("The data log file does not exist yet. Submit some data to create it.")
