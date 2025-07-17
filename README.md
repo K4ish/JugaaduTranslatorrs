@@ -8,39 +8,48 @@
 
 **Jugaadu Translator** is a multilingual, community-driven Streamlit application that translates regional, colloquial, and dialect-based Indian phrases into standardized Hindi or English — and vice versa.
 
-It bridges India’s linguistic diversity while **building a cultural corpus** that will help train inclusive, regional language models (LLMs) and preserve disappearing idioms and expressions.
+It bridges India’s linguistic diversity while **building a cultural corpus** that helps train inclusive, regional language models (LLMs) and preserves disappearing idioms and expressions — now with **speech-to-text audio input** for verbal submissions.
 
 ---
 
 ## 🚀 Features
 
 ### 🗣️ Colloquial to Standard Translator  
-Type regional or dialectal phrases and receive formal Hindi/English translations.
+Type or **speak** regional/dialect phrases and get translations in formal Hindi or English.
 
 ### 🔁 Bi-Directional Translation  
-Translate both from local expressions to standard language and vice versa.
+Translate from standard language to local expressions and vice versa.
+
+### 🎙️ Audio Input with Speech-to-Text  
+Users can **record audio** of local phrases.  
+The app transcribes spoken input using a Speech-to-Text model before translation.
 
 ### ✍️ User-Contributed Phrases  
-Users can contribute their own slang, idioms, or phrases — along with context or region — helping the app grow dynamically.
+Users can contribute their own slang, idioms, or phrases — along with category, title, and context.
 
 ### 🌐 Indic Language & Transliteration Support  
-Supports inputs in regional scripts as well as Romanized transliteration (e.g., Hinglish).
+Supports both native scripts and Romanized input (e.g., Hinglish).
 
 ### 📤 Corpus Builder Mode  
-All submitted phrases are logged (with consent) into a shared corpus including:
-- Original Phrase  
+All entries go into a structured, crowdsourced linguistic dataset with the following fields:
+- Original Phrase (Text or Transcribed Audio)  
 - Translated Phrase  
-- Region (State-level metadata)  
-- Timestamp (optional)  
-This data is stored in **Google Sheets** and/or exported to **CSV files**, which can later be used to train models, analyze dialects, or build fine-tuned translation systems.
+- **Category** (e.g., Greeting, Insult, Folk Saying)  
+- **Title** (Short label)  
+- **Description** (Context/Usage)  
+- **Geo-coordinates**  
+- **User alias**  
+- Timestamp  
 
-> ⚠️ **Privacy Notice:** No user-identifying information or exact geolocation is stored. Contributions are anonymized. Only linguistic content and general region are recorded.
+Stored securely in **Google Sheets** and exported to CSV for open-source training purposes.
+
+> ⚠️ **Privacy Notice:** No exact user location or personal data is collected. Only regional-level metadata is retained.
 
 ---
 
 ## 🌍 Problem Statement
 
-India is home to hundreds of languages and dialects, but most NLP tools fail to capture the nuance of localized speech. From job applications to casual conversations, communication suffers when standardized tools ignore regional variation.
+India is home to hundreds of languages and dialects, yet most NLP tools overlook these variations. Without context-aware, region-sensitive translation, digital tools fail real users.
 
 ---
 
@@ -48,45 +57,47 @@ India is home to hundreds of languages and dialects, but most NLP tools fail to 
 
 **Jugaadu Translator** serves as:
 
-- A **practical translation assistant** for understanding everyday regional phrases  
-- A **linguistic data collector** for training Indian-language models  
-- A **preservation tool** for archiving disappearing dialects and folk idioms
+- A **daily-use translator** for regional speech  
+- A **speech-aware language dataset builder**  
+- A **cultural preservation platform** for fading idioms  
+- A **resource for training multilingual LLMs**
 
 ---
 
 ## 💡 Use Cases
 
-- A tourist from North India trying to understand a phrase in Telangana  
-- Translating local slang into formal language for a resume or official document  
-- NLP researchers analyzing regional variation and informal usage  
-- Teachers and students learning about language diversity  
-- Content creators and scriptwriters seeking authentic voice/tone  
+- Tourists trying to understand a phrase by speaking it  
+- Elders dictating folk idioms for preservation  
+- Job applicants refining casual slang into formal English  
+- Linguistic researchers collecting geo-tagged voice data  
+- Students and educators learning authentic dialect
 
 ---
 
 ## 📊 Data Collection & Corpus Uploading
 
-All user-submitted data follows a structured process:
+### 🔄 Input Flow:
 
-1. **Phrase Submission**  
-   - User inputs: colloquial/local phrase  
-   - User selects: language, region (dropdown or auto-detected)  
-   - Optional: provides context or usage example
+1. **User Input**  
+   - Enter phrase by **text** or **microphone recording**  
+   - Add **title**, **description**, **category**, and **region**  
+   - Location auto-detected via browser or entered manually  
+   - Optional pseudonymous user alias
 
-2. **Translation Output**  
-   - The AI model returns standard Hindi/English translation  
-   - User may refine or edit if they have a better alternative (community-validation loop)
+2. **Processing**  
+   - Audio input is converted to text using a Speech-to-Text model  
+   - Phrase is translated to formal Hindi/English  
+   - User reviews and confirms or edits output
 
 3. **Corpus Logging**  
-   - Every validated entry (phrase, translation, region, optional context) is saved to a **Google Sheet** via `gspread` or `pygsheets`  
-   - Backup CSV exports are also stored for version control  
-   - Each entry is time-stamped for chronological dataset building
+   - Each validated phrase and its metadata is stored in:
+     - Google Sheets via `gspread` or `pygsheets`
+     - CSV backups for export or downstream use
 
 4. **Corpus Usage**  
-   - Data can be exported for downstream tasks like:
-     - Training or fine-tuning translation models (IndicBERT, NLLB, etc.)
-     - Semantic clustering of regional phrases
-     - Building region-specific language packs
+   - LLM fine-tuning (e.g., IndicBERT, NLLB)  
+   - Audio-text alignment for STT improvement  
+   - Region-based semantic search systems
 
 ---
 
@@ -105,13 +116,14 @@ All user-submitted data follows a structured process:
 ## 🛠️ Tech Stack
 
 **Frontend:**  
-- [Streamlit](https://streamlit.io/) for the web interface
+- Streamlit  
+- HTML5 Audio API for microphone access
 
-**Backend:**  
+**Backend & Storage:**  
 - Python  
 - Google Sheets API (`gspread`, `pygsheets`)  
-- CSV for lightweight backups  
-- Geolocation based on dropdown or IP-region mapping (no precise data stored)
+- CSV data storage  
+- GeoIP or browser location API
 
 **AI/NLP Models:**  
 - Hugging Face Transformers:
@@ -119,11 +131,15 @@ All user-submitted data follows a structured process:
   - [NLLB-200](https://huggingface.co/facebook/nllb-200-distilled-600M)  
   - [MarianMT](https://huggingface.co/Helsinki-NLP)
 
+**Speech-to-Text:**  
+- [Whisper by OpenAI](https://github.com/openai/whisper) *(default)*  
+- Optional fallback: Google Cloud STT or Vosk (offline)
+
 **Hosting:**  
-- [Hugging Face Spaces](https://huggingface.co/spaces) (via Gradio or Streamlit)  
-- GitHub for version control and deployment hooks
+- Hugging Face Spaces (Gradio/Streamlit)  
+- GitHub for CI/CD & collaboration
 
 ---
 
-## 📁 Folder Structure (Suggestion)
+## 📁 Folder Structure (Suggested)
 
