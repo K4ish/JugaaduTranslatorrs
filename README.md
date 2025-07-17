@@ -1,9 +1,11 @@
-🧠 **Jugaadu Translator**: Local Phrase Translator
+🧠 Jugaadu Translator
+Local Phrase Translator
 Preserve your roots. Understand each other. One phrase at a time.
 
-Jugaadu Translator is a multilingual, community-powered Streamlit application that helps users translate colloquial and local phrases into standardized Hindi or English. This app bridges India's rich linguistic diversity, one phrase at a time, while collecting culturally significant data that helps build better, more inclusive language models.
+📌 Overview
+Jugaadu Translator is a multilingual, community-powered Streamlit application that translates colloquial and local phrases into standardized Hindi or English. It aims to bridge India’s rich linguistic diversity by collecting culturally significant data to train better, more inclusive language models.
 
-🚀 **Features**
+🚀 Features
 🗣️ Colloquial to Standard Translator
 Type regional/dialect phrases and get translations in formal Hindi or English.
 
@@ -11,38 +13,47 @@ Type regional/dialect phrases and get translations in formal Hindi or English.
 Translate from standard to local expressions and vice versa.
 
 ✍️ User-Contributed Phrases
-Let users teach the app new slang, idioms, or regional terms.
+Allow users to contribute new slang, idioms, or regional terms.
 
 🌐 Indic Language Support
-Support for transliterated input (e.g., Hinglish), multiple Indian languages.
+Supports transliterated input (e.g., Hinglish) and multiple Indian languages.
 
 📤 Corpus Builder Mode
-Every phrase contributes to a crowdsourced linguistic dataset. Submitted phrases, their translations, and approximate geolocation metadata (region or state-level) are stored for future training and analysis by implementing google sheets.
+Every phrase contributes to a crowdsourced linguistic dataset.
+Data includes:
 
-⚠️ Privacy Note: All contributions are anonymized. Only the phrase, translation, and region (not exact user location) are stored for research and corpus-building purposes.
+Phrase
 
-🌍 **Problem Statement**
-People across India often struggle to communicate across dialects or regions due to highly localized phrases and cultural expressions. At the same time, most modern language models lack exposure to these local speech patterns.
+Translation
 
-🧩 **Our Solution**
-Jugaadu Translator acts as:
+Region (state-level geolocation)
+Stored anonymously in Google Sheets for future training and analysis.
 
-A daily-use translation tool for understanding region-specific speech
+⚠️ Privacy Note: All contributions are anonymized. No exact user location is stored—only phrase, translation, and general region.
 
-A data generator for collecting and training regional LLMs
+🌍 Problem Statement
+India’s diversity in dialects makes communication across regions difficult.
+Modern LLMs lack sufficient data on local idioms and speech patterns, causing poor performance in real-world multilingual usage.
 
-A language preservation utility to document and share disappearing idioms
+🧩 Our Solution
+Jugaadu Translator functions as:
 
-💡 **Use Cases**
-A North Indian tourist trying to understand a phrase in Telangana
+A daily-use translation tool for region-specific speech
 
-Job seekers translating informal language for formal resumes
+A data generator for collecting dialectal expressions to train regional LLMs
 
-Researchers collecting dialectal variation for NLP
+A language preservation utility for documenting disappearing idioms
 
-Language learners and school children understanding colloquialism
+💡 Use Cases
+A tourist from North India understanding phrases in Telangana
 
-👥 **Team**
+Job seekers converting informal local language into formal resume-ready language
+
+NLP researchers collecting dialectal variations
+
+Language learners and school children learning colloquial speech
+
+👥 Team
 Name	Role
 Krishna Mishra	Project Manager
 Syed Adnan	Developer (Backend & AI)
@@ -50,11 +61,32 @@ Karthikeya	UI Engineer
 Nandhu	UX Designer
 Abhishek	QA & Tester
 
-🛠️ **Tech Stack**
-Frontend: Streamlit
+🛠️ Tech Stack
+Frontend:
 
-Backend: Google Data sheet,Python, CSV-based phrase store (easy to scale to Firebase/Supabase)
+Streamlit
 
-NLP/AI: Hugging Face Transformers (IndicBERT, NLLB, MarianMT)
+Backend:
 
-Hosting: Hugging Face Spaces (Gradio/Streamlit), GitHub
+Google Sheets
+
+Python
+
+CSV-based phrase store (scalable to Firebase/Supabase)
+
+NLP / AI Models:
+
+Hugging Face Transformers
+
+IndicBERT
+
+NLLB
+
+MarianMT
+
+Hosting:
+
+Hugging Face Spaces (Gradio/Streamlit)
+
+GitHub
+
