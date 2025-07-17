@@ -27,8 +27,7 @@ def append_to_gsheet(local, english, location, source_lang=None, title=None, des
         english,
         location,
         source_lang or "N/A"
-    ])
-
+    ]
 # --- Title & Description Generation ---
 def generate_title_description(local_phrase, english_translation):
     title = f"Meaning of '{local_phrase[:20].capitalize()}'"
