@@ -14,7 +14,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- Data Handling Functions (for offline storage) ---
+# -- Data Handling Functions (for offline storage) ---
 
 def load_database():
     """Loads the phrase database from the JSON file."""
