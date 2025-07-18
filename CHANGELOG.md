@@ -25,7 +25,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - UX flow for adding and viewing translations by Nandhu
 - Basic testing suite added by Abhishek
 
--
+
 
 ## [0.1.0] – 2025-07-16
 
