@@ -1,57 +1,53 @@
-# 📓 Changelog
-
+Changelog
 All notable changes to this project will be documented in this file.
 
-This project adheres to [Semantic Versioning](https://semver.org/).
+The format is based on Keep a Changelog,
+and this project adheres to Semantic Versioning.
 
----
+[1.2.1] - 2025-07-18
+Fixed
+Corrected a SyntaxError related to the use of a global variable.
 
-## [Unreleased]
-- Tamil support being explored
-- New phrase contribution flow via UI
-- UX enhancement suggestions under review
+Refactored state management to reliably use st.session_state for audio data, resolving issues where recordings were lost on app reruns.
 
--
+Improved UI feedback with more descriptive status messages and a clearer flow for saving notes.
 
-## [1.0.0] – 2025-07-17
+[1.2.0] - 2025-07-17
+Changed
+Geolocation is now optional. Users can save text or audio notes without providing their location.
 
-🎉 Initial public release
+Improved UI feedback during the save process with more descriptive spinner messages.
 
-### Added
-- Base Streamlit app with multilingual support
-- Hindi-English phrase translations using Hugging Face models
-- CSV-based phrase contribution system
-- Clean UI layout by Karthikeya
-- UX flow for adding and viewing translations by Nandhu
-- Basic testing suite added by Abhishek
+Enhanced error messages to better diagnose issues related to Supabase policies for the database table and storage bucket.
 
+Fixed
+Critical: Corrected a typo in the Supabase API key that was causing all database and storage operations to fail with an "Invalid API key" error.
 
+[1.1.0] - 2025-07-17
+Added
+Added a "Saved Notes" section to fetch and display all previously saved notes from the Supabase database.
 
-## [0.1.0] – 2025-07-16
+Included an audio player to play back recorded audio associated with each note.
 
-🚧 Internal MVP
+Added a "Refresh Notes" button to manually reload the list of notes.
 
-### Added
-- Phrase-to-translation pipeline
-- Minimal UI proof-of-concept
-- Sample Hindi phrases
-- Team role assignments:
-  - Krishna Mishra (Project Manager)
-  - Adnan (Developer)
-  - Karthikeya (UI)
-  - Nandhu (UX)
-  - Abhishek (Testing)
+Fixed
+Resolved a major state management bug where recorded audio was lost after clicking the "Save" button. The application now correctly uses st.session_state to persist the audio data across Streamlit reruns.
 
----
+[1.0.0] - 2025-07-17
+Added
+Initial release of the Geo-Notes application.
 
-## Legend
+Core functionality to record audio notes and capture browser geolocation.
 
-- **Added** – New features
-- **Changed** – Changes in existing functionality
-- **Deprecated** – Features soon to be removed
-- **Removed** – Features removed in this release
-- **Fixed** – Bug fixes
-- **Security** – Security-related improvements
+Integration with Supabase for backend storage:
 
----
+Note metadata (text, location) is saved to a Supabase PostgreSQL table.
 
+Recorded audio files are uploaded to Supabase Storage.
+
+Created app.py for the Streamlit application logic.
+
+Added requirements.txt with all necessary Python dependencies.
+
+Configured Dockerfile for deployment on Hugging Face Spaces.
