@@ -21,7 +21,7 @@ Type or **speak** regional/dialect phrases and get translations in formal Hindi 
 Translate from standard language to local expressions and vice versa.
 
 ### 🎙️ Audio Input with Speech-to-Text  
-Users can **record audio** of local phrases.  
+Users can **record audio** of local phrases  
 The app transcribes spoken input using a Speech-to-Text model before translation.
 
 ### ✍️ User-Contributed Phrases  
