@@ -11,7 +11,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - New phrase contribution flow via UI
 - UX enhancement suggestions under review
 
----
+--
 
 ## [1.0.0] – 2025-07-17
 
