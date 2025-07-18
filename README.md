@@ -62,7 +62,7 @@ India is home to hundreds of languages and dialects, yet most NLP tools overlook
 - A **cultural preservation platform** for fading idioms  
 - A **resource for training multilingual LLMs**
 
----
+--
 
 ## 💡 Use Cases
 
