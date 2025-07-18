@@ -10,7 +10,7 @@
 
 It bridges India’s linguistic diversity while **building a cultural corpus** that helps train inclusive, regional language models (LLMs) and preserves disappearing idioms and expressions — now with **speech-to-text audio input** for verbal submissions.
 
----
+--
 
 ## 🚀 Features
 
