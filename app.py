@@ -1,138 +1,164 @@
-# File: jugaadu_translator.py
-
 import streamlit as st
-import json
+from datetime import datetime
 import os
+import json
+import requests
+import uuid
+import torch
+import whisper
+from transformers import pipeline
 
-# --- Configuration & Setup ---
-DB_FILE = "phrases_db.json"
+st.set_page_config(page_title="Jugaadu Translator", layout="centered")
 
-st.set_page_config(
-    page_title="Jugaadu Translator",
-    page_icon="💡",
-    layout="centered",
-    initial_sidebar_state="expanded"
-)
+SUPPORTED_LANGUAGES = {
+    "Hindi": {
+        "code": "hi",
+        "translation_model": "Helsinki-NLP/opus-mt-hi-en",
+        "whisper_language": "hi"
+    },
+    "Telugu": {
+        "code": "te",
+        "translation_model": "Helsinki-NLP/opus-mt-te-en",
+        "whisper_language": "te"
+    },
+    "Sanskrit": {
+        "code": "sa",
+        "translation_model": "Helsinki-NLP/opus-mt-sa-en",
+        "whisper_language": "sa"
+    }
+}
 
-# -- Data Handling Functions (for offline storage) ---
+AUDIO_SAVE_DIR = "data/audio"
+RECORDS_PATH = "data/records.json"
+os.makedirs(AUDIO_SAVE_DIR, exist_ok=True)
+os.makedirs("data", exist_ok=True)
 
-def load_database():
-    """Loads the phrase database from the JSON file."""
-    if not os.path.exists(DB_FILE):
-        # If the file doesn't exist, create it with some initial examples
-        initial_data = {
-            "kaisa hai?": "How are you?",
-            "sab theek hai": "Everything is fine.",
-            "tuition laga lo": "Get a tutor / Start tuition classes.",
-            "timepass kar raha hoon": "I'm just passing time.",
-            "panga mat le": "Don't mess with me.",
-            "oye!": "Hey!",
-            "chalega": "It will work / That's acceptable."
-        }
-        with open(DB_FILE, 'w', encoding='utf-8') as f:
-            json.dump(initial_data, f, ensure_ascii=False, indent=4)
-        return initial_data
-    
+# Use lightweight Whisper model for best HF Spaces compatibility!
+@st.cache_resource(show_spinner="Loading Whisper model...")
+def get_whisper_model():
+    return whisper.load_model("tiny")
+
+@st.cache_resource(show_spinner="Loading translation models...")
+def get_translator(language):
+    model_name = SUPPORTED_LANGUAGES[language]["translation_model"]
+    return pipeline("translation", model=model_name)
+
+@st.cache_resource(show_spinner="Loading summarizer...")
+def get_summarizer():
+    return pipeline("summarization", model="sshleifer/distilbart-cnn-12-6")
+
+def get_location():
     try:
-        with open(DB_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except (json.JSONDecodeError, FileNotFoundError):
-        # If file is empty or corrupted, return an empty dictionary
-        return {}
+        resp = requests.get("https://ipinfo.io/json", timeout=5)
+        data = resp.json()
+        loc_str = f"{data.get('city', '')}, {data.get('region', '')}, {data.get('country', '')}"
+        return loc_str.strip(", ")
+    except:
+        return "Unknown Location"
 
-
-def save_database(data):
-    """Saves the updated phrase database to the JSON file."""
-    with open(DB_FILE, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
-
-# --- Main Application ---
-
-# Load the data at the start
-phrases_db = load_database()
-
-# --- UI Layout ---
-
-st.title("💡 Jugaadu Local Phrase Translator")
-st.markdown("""
-A community-built translator to bridge communication gaps. 
-Works entirely offline!
-""")
-
-# --- Sidebar for Mode Selection ---
-st.sidebar.header("What do you want to do?")
-app_mode = st.sidebar.radio(
-    "Choose a mode:",
-    ('Translate a Phrase', 'Contribute a New Phrase')
-)
-
-# --- Mode 1: Translation ---
-if app_mode == 'Translate a Phrase':
-    st.header("🔄 Translate")
-
-    direction = st.radio(
-        "Select translation direction:",
-        ('Local Dialect → Standard English', 'Standard English → Local Dialect')
-    )
-
-    if direction == 'Local Dialect → Standard English':
-        input_label = "Enter the local phrase you want to translate:"
-        # The keys of our database are the local phrases
-        source_db = phrases_db
-        not_found_message = "Sorry, I don't know that one yet! You can add it in the 'Contribute' mode."
-    else: # English to Local
-        input_label = "Enter the Standard English phrase you want to translate:"
-        # We need to create a reverse dictionary for this direction
-        english_to_local_db = {v.lower(): k for k, v in phrases_db.items()}
-        source_db = english_to_local_db
-        not_found_message = "Sorry, no local equivalent found. Feel free to contribute one!"
-
-    user_input = st.text_input(input_label, placeholder="Type a phrase here...")
-
-    if st.button("Translate", use_container_width=True, type="primary"):
-        if user_input:
-            # Standardize input for better matching
-            query = user_input.strip().lower()
-            
-            # Find the translation
-            result = source_db.get(query, not_found_message)
-            
-            st.subheader("Translation:")
-            st.success(f"**{result}**")
-        else:
-            st.warning("Please enter a phrase to translate.")
-
-# --- Mode 2: Crowdsourcing / Contribution ---
-elif app_mode == 'Contribute a New Phrase':
-    st.header("✍️ Add Your Own Phrase")
-    st.info("Help us grow! Your contributions make the translator smarter for everyone.", icon="🙏")
-
-    with st.form("contribution_form"):
-        local_phrase = st.text_input("Enter the Local/Colloquial Phrase:")
-        standard_english_phrase = st.text_input("Enter its Standard English Equivalent:")
-        
-        submitted = st.form_submit_button("Submit Contribution", use_container_width=True)
-
-        if submitted:
-            if local_phrase and standard_english_phrase:
-                # Standardize inputs before saving
-                local_key = local_phrase.strip().lower()
-                english_value = standard_english_phrase.strip()
-                
-                # Update the database in memory
-                phrases_db[local_key] = english_value
-                
-                # Save the updated database to the file
-                save_database(phrases_db)
-                
-                st.success(f"Thank you! '{local_phrase}' has been added to the translator.")
-                st.balloons()
-            else:
-                st.error("Please fill in both fields before submitting.")
-
-# --- Displaying the Raw Data (Optional) ---
-with st.expander("🧐 See all known phrases (the current database)"):
-    if phrases_db:
-        st.json(phrases_db)
+def save_record(record):
+    if os.path.exists(RECORDS_PATH):
+        with open(RECORDS_PATH, "r", encoding="utf-8") as f:
+            records = json.load(f)
     else:
-        st.write("The database is currently empty. Contribute a phrase to get started!")
+        records = []
+    records.append(record)
+    with open(RECORDS_PATH, "w", encoding="utf-8") as f:
+        json.dump(records, f, indent=2, ensure_ascii=False)
+
+def show_records():
+    if not os.path.exists(RECORDS_PATH):
+        st.info("No contributions yet.")
+        return
+    with open(RECORDS_PATH, "r", encoding="utf-8") as f:
+        records = json.load(f)
+    st.subheader("Previous Contributions")
+    for rec in reversed(records[-5:]):
+        st.markdown(f"**User:** {rec['username']}  \n"
+                    f"**Time:** {rec['timestamp']}  \n"
+                    f"**Location:** {rec['location']}  \n"
+                    f"**Title:** {rec['title']}")
+        st.markdown(f"**Idiom:** {rec['input_text']}")
+        st.markdown(f"**Translation:** {rec['translation']}")
+        st.markdown(f"**Description:** {rec['description']}")
+        if rec['audio_path'] and os.path.exists(rec['audio_path']):
+            with open(rec['audio_path'], 'rb') as f_:
+                st.audio(f_.read())
+        st.markdown("---")
+
+if "username" not in st.session_state:
+    st.title("Jugaadu Translator 🧠")
+    st.markdown("Enter a username to begin contributing to the idioms corpus.")
+    username = st.text_input("Username (choose a unique handle)", max_chars=30)
+    if st.button("Continue") and username:
+        st.session_state["username"] = username.strip()
+        st.success(f"Welcome, {username.strip()}! Proceed to record or type idioms.")
+        st.experimental_rerun()
+    st.stop()
+
+st.title("Jugaadu Translator 🧠")
+st.markdown(f"Hi, **{st.session_state['username']}**!")
+
+col1, col2 = st.columns(2)
+with col1:
+    language = st.selectbox("Pick Idiom Language", list(SUPPORTED_LANGUAGES.keys()))
+with col2:
+    input_mode = st.radio("Input Type", ["Type", "Upload Voice"])
+
+input_text = ""
+audio_path = None
+
+if input_mode == "Type":
+    input_text = st.text_area("Type the idiom/dialect phrase:", height=100)
+else:
+    st.markdown("Upload a short voice note of your idiom (.wav, .mp3):")
+    audio_file = st.file_uploader("Choose audio file", type=['wav', 'mp3'])
+    if audio_file:
+        uid = str(uuid.uuid4())
+        # Preserve file extension
+        audio_path = os.path.join(AUDIO_SAVE_DIR, f"{st.session_state['username']}_{uid}.{audio_file.name.split('.')[-1]}")
+        with open(audio_path, "wb") as f:
+            f.write(audio_file.read())
+        st.success("Audio uploaded and saved.")
+        asr_model = get_whisper_model()
+        result = asr_model.transcribe(audio_path, language=SUPPORTED_LANGUAGES[language]['whisper_language'])
+        input_text = result["text"]
+        st.markdown("**Transcription:** " + input_text)
+
+if st.button("Translate", disabled=not input_text.strip()):
+    with st.spinner("Translating and generating summary..."):
+        translator = get_translator(language)
+        translation = translator(input_text)[0]['translation_text']
+        summarizer = get_summarizer()
+        try:
+            desc = summarizer(translation, max_length=60, min_length=15, do_sample=False)[0]['summary_text']
+        except Exception:
+            desc = translation
+        title = desc.split(".")[0][:40]
+        location = get_location()
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        record = {
+            "username": st.session_state['username'],
+            "input_text": input_text,
+            "translation": translation,
+            "audio_path": audio_path if audio_path else "",
+            "title": title,
+            "description": desc,
+            "timestamp": timestamp,
+            "location": location
+        }
+        save_record(record)
+        st.success("Submission saved!")
+        st.markdown(f"#### Title: {title}")
+        st.markdown(f"**Translation:** {translation}")
+        st.markdown(f"**Description:** {desc}")
+        st.markdown(f"**Location:** {location}")
+        if audio_path and os.path.exists(audio_path):
+            with open(audio_path, 'rb') as f:
+                st.audio(f.read())
+        st.balloons()
+
+st.markdown("---")
+show_records()
+st.markdown("---")
+st.markdown("**All data stays local! You can find files inside `data/` for research use. No cloud required.**")
