@@ -1,1 +1,5 @@
-pip install streamlit geocoder SpeechRecognition pydub gspread oauth2client googletrans==4.0.0rc1
+streamlit
+torch
+transformers
+whisper
+requests
