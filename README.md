@@ -99,7 +99,7 @@ India is home to hundreds of languages and dialects, yet most NLP tools overlook
    - Audio-text alignment for STT improvement  
    - Region-based semantic search systems
 
----
+--
 
 ## 👥 Team
 
