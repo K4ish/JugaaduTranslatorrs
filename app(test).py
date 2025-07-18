@@ -1,149 +1,180 @@
 import streamlit as st
-import openai
-import pandas as pd
-from st_audiorecorder import st_audiorecorder
-import os
 from datetime import datetime
+import os
+import json
+import requests
+import uuid
+import torch
+import whisper
+from transformers import pipeline
 
-# --- App Configuration ---
-st.set_page_config(page_title="Audio Translator", page_icon="🎤", layout="centered")
+st.set_page_config(page_title="Jugaadu Translator", layout="centered")
 
-# --- OpenAI API Setup ---
-try:
-    openai.api_key = st.secrets["OPENAI_API_KEY"]
-except KeyError:
-    st.error("OpenAI API key not found! Please add it to your Streamlit secrets.")
+SUPPORTED_LANGUAGES = {
+    "Hindi": {
+        "code": "hi",
+        "translation_model": "Helsinki-NLP/opus-mt-hi-en",
+        "whisper_language": "hi"
+    },
+    "Telugu": {
+        "code": "te",
+        "translation_model": "Helsinki-NLP/opus-mt-te-en",
+        "whisper_language": "te"
+    },
+    "Sanskrit": {
+        "code": "sa",
+        "translation_model": "Helsinki-NLP/opus-mt-sa-en",
+        "whisper_language": "sa"
+    }
+}
+
+AUDIO_SAVE_DIR = "data/audio"
+RECORDS_PATH = "data/records.json"
+os.makedirs(AUDIO_SAVE_DIR, exist_ok=True)
+os.makedirs("data", exist_ok=True)
+
+# ✅ NEW: Function to save audio file
+def save_audio_file(uploaded_file, username):
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    ext = uploaded_file.name.split('.')[-1]
+    filename = f"{username}_{timestamp}.{ext}"
+    file_path = os.path.join(AUDIO_SAVE_DIR, filename)
+    with open(file_path, "wb") as f:
+        f.write(uploaded_file.read())
+    return file_path, filename
+
+# Use lightweight Whisper model for best HF Spaces compatibility!
+@st.cache_resource(show_spinner="Loading Whisper model...")
+def get_whisper_model():
+    import os
+    os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
+    os.environ["CUDA_VISIBLE_DEVICES"] = ""  # Force CPU
+
+    import whisper
+    model = whisper.load_model("tiny.en", device="cpu")
+    return model
+
+
+@st.cache_resource(show_spinner="Loading translation models...")
+def get_translator(language):
+    model_name = SUPPORTED_LANGUAGES[language]["translation_model"]
+    return pipeline("translation", model=model_name)
+
+@st.cache_resource(show_spinner="Loading summarizer...")
+def get_summarizer():
+    return pipeline("summarization", model="sshleifer/distilbart-cnn-12-6")
+
+def get_location():
+    try:
+        resp = requests.get("https://ipinfo.io/json", timeout=5)
+        data = resp.json()
+        loc_str = f"{data.get('city', '')}, {data.get('region', '')}, {data.get('country', '')}"
+        return loc_str.strip(", ")
+    except:
+        return "Unknown Location"
+
+def save_record(record):
+    if os.path.exists(RECORDS_PATH):
+        with open(RECORDS_PATH, "r", encoding="utf-8") as f:
+            records = json.load(f)
+    else:
+        records = []
+    records.append(record)
+    with open(RECORDS_PATH, "w", encoding="utf-8") as f:
+        json.dump(records, f, indent=2, ensure_ascii=False)
+
+def show_records():
+    if not os.path.exists(RECORDS_PATH):
+        st.info("No contributions yet.")
+        return
+    with open(RECORDS_PATH, "r", encoding="utf-8") as f:
+        records = json.load(f)
+    st.subheader("Previous Contributions")
+    for rec in reversed(records[-5:]):
+        st.markdown(f"**User:** {rec['username']}  \n"
+                    f"**Time:** {rec['timestamp']}  \n"
+                    f"**Location:** {rec['location']}  \n"
+                    f"**Title:** {rec['title']}")
+        st.markdown(f"**Idiom:** {rec['input_text']}")
+        st.markdown(f"**Translation:** {rec['translation']}")
+        st.markdown(f"**Description:** {rec['description']}")
+        if rec['audio_path'] and os.path.exists(rec['audio_path']):
+            with open(rec['audio_path'], 'rb') as f_:
+                st.audio(f_.read())
+        st.markdown("---")
+
+if "username" not in st.session_state:
+    st.title("Jugaadu Translator 🧠")
+    st.markdown("Enter a username to begin contributing to the idioms corpus.")
+    username = st.text_input("Username (choose a unique handle)", max_chars=30)
+    if st.button("Continue") and username:
+        st.session_state["username"] = username.strip()
+        st.success(f"Welcome, {username.strip()}! Proceed to record or type idioms.")
+        st.rerun()
     st.stop()
 
-# --- Data Storage Setup --
-DATA_DIR = "audio_data"
-LOG_FILE = "translations_log.csv"
+st.title("Jugaadu Translator 🧠")
+st.markdown(f"Hi, **{st.session_state['username']}**!")
 
-# Create directories and files if they don't exist
-if not os.path.exists(DATA_DIR):
-    os.makedirs(DATA_DIR)
+col1, col2 = st.columns(2)
+with col1:
+    language = st.selectbox("Pick Idiom Language", list(SUPPORTED_LANGUAGES.keys()))
+with col2:
+    input_mode = st.radio("Input Type", ["Type", "Upload Voice"])
 
-if not os.path.exists(LOG_FILE):
-    # Create the CSV file with headers if it doesn't exist
-    pd.DataFrame(columns=[
-        "timestamp", "location", "audio_filename",
-        "original_transcription", "english_translation"
-    ]).to_csv(LOG_FILE, index=False)
+input_text = ""
+audio_path = None
 
-# --- Helper Functions -
+if input_mode == "Type":
+    input_text = st.text_area("Type the idiom/dialect phrase:", height=100)
+else:
+    st.markdown("Upload a short voice note of your idiom (.wav, .mp3):")
+    audio_file = st.file_uploader("Choose audio file", type=['wav', 'mp3'])
+    if audio_file:
+        try:
+            audio_path, _ = save_audio_file(audio_file, st.session_state["username"])
+            st.success("Audio uploaded and saved.")
+            asr_model = get_whisper_model()
+            result = asr_model.transcribe(audio_path, language=SUPPORTED_LANGUAGES[language]['whisper_language'])
+            input_text = result["text"]
+            st.markdown("**Transcription:** " + input_text)
+        except Exception as e:
+            st.error(f"Failed to process audio: {e}")
 
-def transcribe_audio(audio_filepath):
-    """Transcribes audio using OpenAI's Whisper model."""
-    try:
-        with open(audio_filepath, "rb") as audio_file:
-            transcript = openai.audio.transcriptions.create(
-                model="whisper-1",
-                file=audio_file,
-                response_format="json"
-            )
-        return transcript.text
-    except Exception as e:
-        st.error(f"Error during transcription: {e}")
-        return None
+if st.button("Translate", disabled=not input_text.strip()):
+    with st.spinner("Translating and generating summary..."):
+        translator = get_translator(language)
+        translation = translator(input_text)[0]['translation_text']
+        summarizer = get_summarizer()
+        try:
+            desc = summarizer(translation, max_length=60, min_length=15, do_sample=False)[0]['summary_text']
+        except Exception:
+            desc = translation
+        title = desc.split(".")[0][:40]
+        location = get_location()
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        record = {
+            "username": st.session_state['username'],
+            "input_text": input_text,
+            "translation": translation,
+            "audio_path": audio_path if audio_path else "",
+            "title": title,
+            "description": desc,
+            "timestamp": timestamp,
+            "location": location
+        }
+        save_record(record)
+        st.success("Submission saved!")
+        st.markdown(f"#### Title: {title}")
+        st.markdown(f"**Translation:** {translation}")
+        st.markdown(f"**Description:** {desc}")
+        st.markdown(f"**Location:** {location}")
+        if audio_path and os.path.exists(audio_path):
+            with open(audio_path, 'rb') as f:
+                st.audio(f.read())
+        st.balloons()
 
-def translate_text_to_english(text):
-    """Translates text to English using OpenAI's GPT model."""
-    try:
-        response = openai.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant that translates text to English."},
-                {"role": "user", "content": f"Translate the following text to English: {text}"}
-            ]
-        )
-        return response.choices[0].message.content
-    except Exception as e:
-        st.error(f"Error during translation: {e}")
-        return None
-
-def save_data(location, audio_filename, original_transcription, english_translation):
-    """Saves the new data entry to the CSV log file."""
-    new_entry = {
-        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "location": location,
-        "audio_filename": audio_filename,
-        "original_transcription": original_transcription,
-        "english_translation": english_translation
-    }
-    # Append the new entry to the CSV file
-    entry_df = pd.DataFrame([new_entry])
-    entry_df.to_csv(LOG_FILE, mode='a', header=False, index=False)
-
-
-# --- Main Application UI ---
-
-st.title("🎤 Audio Transcription and Translation App")
-st.markdown("""
-This app records your audio, transcribes it, and translates the transcription to English.
-All data is stored locally for future reference.
-""")
-
-st.header("Step 1: Record Your Audio")
-# The st_audiorecorder component returns audio data in bytes
-audio_bytes = st_audiorecorder()
-
-st.header("Step 2: Enter Your Location")
-location = st.text_input("Your Location (e.g., 'Paris, France')", placeholder="Enter city and country")
-
-st.header("Step 3: Process and Save")
-if st.button("Translate and Store Data"):
-    # --- Input Validation ---
-    if audio_bytes is None:
-        st.warning("Please record some audio first.")
-    elif not location.strip():
-        st.warning("Please enter your location.")
-    else:
-        with st.spinner("Processing your request... Please wait."):
-            # 1. Save the recorded audio to a file
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            audio_filename = f"{timestamp}_{location.replace(' ', '_')}.wav"
-            audio_filepath = os.path.join(DATA_DIR, audio_filename)
-
-            with open(audio_filepath, "wb") as f:
-                f.write(audio_bytes)
-            
-            st.success(f"Audio saved as `{audio_filepath}`")
-
-            # 2. Transcribe the audio
-            st.info("Transcribing audio...")
-            transcription = transcribe_audio(audio_filepath)
-
-            if transcription:
-                st.subheader("Original Transcription:")
-                st.write(transcription)
-
-                # 3. Translate the transcription to English
-                st.info("Translating text to English...")
-                translation = translate_text_to_english(transcription)
-                
-                if translation:
-                    st.subheader("English Translation:")
-                    st.write(translation)
-                    
-                    # 4. Save all data to the log file
-                    save_data(location, audio_filename, transcription, translation)
-                    st.success("All data has been successfully stored!")
-                else:
-                    st.error("Could not get translation. Data not fully saved.")
-            else:
-                st.error("Could not get transcription. Data not saved.")
-
-
-# --- Display Stored Data ---
-st.divider()
-st.header("📖 View Stored Data")
-
-if st.checkbox("Show all collected data"):
-    try:
-        df = pd.read_csv(LOG_FILE)
-        if df.empty:
-            st.info("The data log is currently empty. Submit some data to see it here.")
-        else:
-            st.dataframe(df)
-    except FileNotFoundError:
-        st.info("The data log file does not exist yet. Submit some data to create it.")
+st.markdown("---")
+show_records()
+st.markdown("---")
+st.markdown("**All data stays local! You can find files inside `data/` for research use. No cloud required.**")
