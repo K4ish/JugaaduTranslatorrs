@@ -108,7 +108,7 @@ India is home to hundreds of languages and dialects, yet most NLP tools overlook
 | Krishna Mishra | Project Manager              |
 | Syed Adnan     | Frontend Developer           |
 | Karthikeya     | UI Engineer                  |
-| Nandhu         | QA & Tester                  |
+| Nanda kishor   | QA & Tester                  |
 | Abhishek       | Backend Developer            |
 
 ---
