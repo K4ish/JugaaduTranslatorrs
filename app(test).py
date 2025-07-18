@@ -15,7 +15,7 @@ except KeyError:
     st.error("OpenAI API key not found! Please add it to your Streamlit secrets.")
     st.stop()
 
-# --- Data Storage Setup ---
+# --- Data Storage Setup --
 DATA_DIR = "audio_data"
 LOG_FILE = "translations_log.csv"
 
