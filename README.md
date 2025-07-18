@@ -50,6 +50,7 @@ Stored securely in **Google Sheets** and exported to CSV for open-source trainin
 ## 🌍 Problem Statement
 
 India is home to hundreds of languages and dialects, yet most NLP tools overlook these variations. Without context-aware, region-sensitive translation, digital tools fail real users.
+and adding geolocation
 
 ---
 
