@@ -39,7 +39,7 @@ All entries go into a structured, crowdsourced linguistic dataset with the follo
 - **Description** (Context/Usage)  
 - **Geo-coordinates**  
 - **User alias**  
-- Timestamp  
+Timestamp  
 
 Stored securely in **Google Sheets** and exported to CSV for open-source training purposes.
 
