@@ -1,180 +1,93 @@
-import streamlit as st
-from datetime import datetime
 import os
-import json
-import requests
-import uuid
-import torch
+
+# ✅ Redirect cache to a writable directory
+os.environ["XDG_CACHE_HOME"] = "/tmp/whisper-cache"
+
+import streamlit as st
+import datetime
 import whisper
-from transformers import pipeline
+import geocoder
+from pydub import AudioSegment
+from io import BytesIO
+from googletrans import Translator
 
-st.set_page_config(page_title="Jugaadu Translator", layout="centered")
+# Page setup
+st.set_page_config(page_title="🌍 Multilingual Transcriber", layout="centered")
+st.title("🎙 Multilingual Audio Transcriber with Location + Metadata")
 
-SUPPORTED_LANGUAGES = {
-    "Hindi": {
-        "code": "hi",
-        "translation_model": "Helsinki-NLP/opus-mt-hi-en",
-        "whisper_language": "hi"
-    },
-    "Telugu": {
-        "code": "te",
-        "translation_model": "Helsinki-NLP/opus-mt-te-en",
-        "whisper_language": "te"
-    },
-    "Sanskrit": {
-        "code": "sa",
-        "translation_model": "Helsinki-NLP/opus-mt-sa-en",
-        "whisper_language": "sa"
-    }
-}
+# Create writable recordings directory
+RECORDINGS_DIR = "/tmp/recordings"
+os.makedirs(RECORDINGS_DIR, exist_ok=True)
 
-AUDIO_SAVE_DIR = "data/audio"
-RECORDS_PATH = "data/records.json"
-os.makedirs(AUDIO_SAVE_DIR, exist_ok=True)
-os.makedirs("data", exist_ok=True)
+# Load whisper model
+@st.cache_resource
+def load_model():
+    return whisper.load_model("base", download_root="/tmp/whisper-cache")
 
-# ✅ NEW: Function to save audio file
-def save_audio_file(uploaded_file, username):
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    ext = uploaded_file.name.split('.')[-1]
-    filename = f"{username}_{timestamp}.{ext}"
-    file_path = os.path.join(AUDIO_SAVE_DIR, filename)
-    with open(file_path, "wb") as f:
-        f.write(uploaded_file.read())
-    return file_path, filename
+model = load_model()
+translator = Translator()
 
-# Use lightweight Whisper model for best HF Spaces compatibility!
-@st.cache_resource(show_spinner="Loading Whisper model...")
-def get_whisper_model():
-    import os
-    os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
-    os.environ["CUDA_VISIBLE_DEVICES"] = ""  # Force CPU
+# Upload audio
+st.header("1. Upload Audio File")
+audio_file = st.file_uploader("Upload your audio file (mp3, wav, m4a)", type=["mp3", "wav", "m4a"])
 
-    import whisper
-    model = whisper.load_model("tiny.en", device="cpu")
-    return model
+if audio_file:
+    st.audio(audio_file)
 
+    # Convert to WAV
+    audio = AudioSegment.from_file(audio_file).set_channels(1).set_frame_rate(16000)
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    base_filename = f"{timestamp}_{audio_file.name.split('.')[0]}"
+    file_path = os.path.join(RECORDINGS_DIR, base_filename + ".wav")
+    audio.export(file_path, format="wav")
 
-@st.cache_resource(show_spinner="Loading translation models...")
-def get_translator(language):
-    model_name = SUPPORTED_LANGUAGES[language]["translation_model"]
-    return pipeline("translation", model=model_name)
+    st.success(f"📁 Audio saved to `{file_path}`")
 
-@st.cache_resource(show_spinner="Loading summarizer...")
-def get_summarizer():
-    return pipeline("summarization", model="sshleifer/distilbart-cnn-12-6")
+    # Transcribe
+    st.header("2. Transcription")
+    with st.spinner("Transcribing..."):
+        result = model.transcribe(file_path)
+        transcription = result["text"]
+        detected_lang = result["language"]
 
-def get_location():
-    try:
-        resp = requests.get("https://ipinfo.io/json", timeout=5)
-        data = resp.json()
-        loc_str = f"{data.get('city', '')}, {data.get('region', '')}, {data.get('country', '')}"
-        return loc_str.strip(", ")
-    except:
-        return "Unknown Location"
+    st.markdown(f"**🗣 Detected Language:** `{detected_lang.upper()}`")
+    st.text_area("📄 Transcription", transcription, height=180)
 
-def save_record(record):
-    if os.path.exists(RECORDS_PATH):
-        with open(RECORDS_PATH, "r", encoding="utf-8") as f:
-            records = json.load(f)
+    # Translate
+    if detected_lang != "en":
+        st.subheader("3. Translation to English")
+        with st.spinner("Translating..."):
+            translated = translator.translate(transcription, src=detected_lang, dest="en").text
+        st.text_area("🌐 English Translation", translated, height=180)
     else:
-        records = []
-    records.append(record)
-    with open(RECORDS_PATH, "w", encoding="utf-8") as f:
-        json.dump(records, f, indent=2, ensure_ascii=False)
+        translated = transcription
 
-def show_records():
-    if not os.path.exists(RECORDS_PATH):
-        st.info("No contributions yet.")
-        return
-    with open(RECORDS_PATH, "r", encoding="utf-8") as f:
-        records = json.load(f)
-    st.subheader("Previous Contributions")
-    for rec in reversed(records[-5:]):
-        st.markdown(f"**User:** {rec['username']}  \n"
-                    f"**Time:** {rec['timestamp']}  \n"
-                    f"**Location:** {rec['location']}  \n"
-                    f"**Title:** {rec['title']}")
-        st.markdown(f"**Idiom:** {rec['input_text']}")
-        st.markdown(f"**Translation:** {rec['translation']}")
-        st.markdown(f"**Description:** {rec['description']}")
-        if rec['audio_path'] and os.path.exists(rec['audio_path']):
-            with open(rec['audio_path'], 'rb') as f_:
-                st.audio(f_.read())
-        st.markdown("---")
+    # Metadata
+    st.subheader("4. Metadata Generation")
+    def generate_metadata(text):
+        title = f"Audio Note - {text[:10]}..."
+        description = f"This recording discusses: {text[:100]}..."
+        return title, description
 
-if "username" not in st.session_state:
-    st.title("Jugaadu Translator 🧠")
-    st.markdown("Enter a username to begin contributing to the idioms corpus.")
-    username = st.text_input("Username (choose a unique handle)", max_chars=30)
-    if st.button("Continue") and username:
-        st.session_state["username"] = username.strip()
-        st.success(f"Welcome, {username.strip()}! Proceed to record or type idioms.")
-        st.rerun()
-    st.stop()
+    title, description = generate_metadata(translated)
+    st.write(f"**📌 Title:** {title}")
+    st.write(f"**🧾 Description:** {description}")
 
-st.title("Jugaadu Translator 🧠")
-st.markdown(f"Hi, **{st.session_state['username']}**!")
+    # Location
+    st.subheader("5. Approximate Location")
+    try:
+        g = geocoder.ip("me")
+        coords = f"{g.latlng[0]}, {g.latlng[1]}" if g.latlng else "Unknown"
+        if g.latlng:
+            st.map(data={"lat": [g.latlng[0]], "lon": [g.latlng[1]]})
+        st.success(f"📍 Coordinates: {coords}")
+    except:
+        st.warning("Unable to determine location.")
 
-col1, col2 = st.columns(2)
-with col1:
-    language = st.selectbox("Pick Idiom Language", list(SUPPORTED_LANGUAGES.keys()))
-with col2:
-    input_mode = st.radio("Input Type", ["Type", "Upload Voice"])
-
-input_text = ""
-audio_path = None
-
-if input_mode == "Type":
-    input_text = st.text_area("Type the idiom/dialect phrase:", height=100)
-else:
-    st.markdown("Upload a short voice note of your idiom (.wav, .mp3):")
-    audio_file = st.file_uploader("Choose audio file", type=['wav', 'mp3'])
-    if audio_file:
-        try:
-            audio_path, _ = save_audio_file(audio_file, st.session_state["username"])
-            st.success("Audio uploaded and saved.")
-            asr_model = get_whisper_model()
-            result = asr_model.transcribe(audio_path, language=SUPPORTED_LANGUAGES[language]['whisper_language'])
-            input_text = result["text"]
-            st.markdown("**Transcription:** " + input_text)
-        except Exception as e:
-            st.error(f"Failed to process audio: {e}")
-
-if st.button("Translate", disabled=not input_text.strip()):
-    with st.spinner("Translating and generating summary..."):
-        translator = get_translator(language)
-        translation = translator(input_text)[0]['translation_text']
-        summarizer = get_summarizer()
-        try:
-            desc = summarizer(translation, max_length=60, min_length=15, do_sample=False)[0]['summary_text']
-        except Exception:
-            desc = translation
-        title = desc.split(".")[0][:40]
-        location = get_location()
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        record = {
-            "username": st.session_state['username'],
-            "input_text": input_text,
-            "translation": translation,
-            "audio_path": audio_path if audio_path else "",
-            "title": title,
-            "description": desc,
-            "timestamp": timestamp,
-            "location": location
-        }
-        save_record(record)
-        st.success("Submission saved!")
-        st.markdown(f"#### Title: {title}")
-        st.markdown(f"**Translation:** {translation}")
-        st.markdown(f"**Description:** {desc}")
-        st.markdown(f"**Location:** {location}")
-        if audio_path and os.path.exists(audio_path):
-            with open(audio_path, 'rb') as f:
-                st.audio(f.read())
-        st.balloons()
-
-st.markdown("---")
-show_records()
-st.markdown("---")
-st.markdown("**All data stays local! You can find files inside `data/` for research use. No cloud required.**")
+    # Summary
+    st.subheader("✅ Summary")
+    st.markdown(f"""
+    - **File Name:** `{base_filename}.wav`
+    - **Language:** `{detected_lang.upper()}`
+    - **Title:** {title}
+    - **Location:** {coords if 'coords' in locals(
