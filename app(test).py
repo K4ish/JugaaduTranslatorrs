@@ -30,7 +30,7 @@ if not os.path.exists(LOG_FILE):
         "original_transcription", "english_translation"
     ]).to_csv(LOG_FILE, index=False)
 
-# --- Helper Functions --
+# --- Helper Functions -
 
 def transcribe_audio(audio_filepath):
     """Transcribes audio using OpenAI's Whisper model."""
