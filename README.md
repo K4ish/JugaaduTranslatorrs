@@ -2,6 +2,8 @@
 ### *Local Phrase Translator*  
 **Preserve your roots. Understand each other. One phrase at a time.**
 
+**View App here**:https://jugaadutranslatorrrgit-4duejqbpwxxa6cysfhncfa.streamlit.app/
+
 ---
 
 ## 📌 Overview
