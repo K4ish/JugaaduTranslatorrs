@@ -1,0 +1,14 @@
+[project]
+name = "bombaclat"
+version = "0.1.0"
+description = "Jugaadu Translator – An AI-powered local phrase translator for SOAI Hackathon 2025."
+authors = [{ name="Team BOMBACLATS", email="krishnamishra2006@gitlab.com" }]
+readme = "README.md"
+license = {text = "AGPL-3.0"}
+
+[tool.black]
+line-length = 88
+
+[tool.ruff]
+line-length = 88
+select = ["E", "F", "B"]
